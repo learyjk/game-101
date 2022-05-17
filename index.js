@@ -1,3 +1,4 @@
+console.log(gsap)
 const canvas = document.querySelector('canvas');
 const c = canvas.getContext('2d');
 
@@ -69,7 +70,7 @@ class Enemy {
 const x = canvas.width / 2;
 const y = canvas.height / 2;
 
-const player = new Player(x, y, 30, 'blue');
+const player = new Player(x, y, 10, 'white');
 player.draw();
 
 function calculateAngle(x1, y1, x2, y2) {
@@ -86,6 +87,7 @@ const enemies = []
 function spawnEnemies() {
   setInterval(() => {
     const radius = Math.random() * (30 - 4) + 4;
+    const color = `hsl(${Math.random() * 360}, 50%, 50%)`
 
     let enemyX, enemyY;
     if (Math.random() < 0.5) {
@@ -95,36 +97,65 @@ function spawnEnemies() {
       enemyX = Math.random() * canvas.width;
       enemyY = Math.random() < 0.5 ? 0 - radius : canvas.height + radius;
     }
-    const color = 'green'
+
     const angle = calculateAngle(enemyX, enemyY, player.x, player.y)
     const velocity = { x: Math.cos(angle * Math.PI / 180), y: Math.sin(angle * Math.PI / 180) }
     enemies.push(new Enemy(enemyX, enemyY, radius, color, velocity))
   }, 1000)
 }
 
+let animationId;
 function animate() {
-  requestAnimationFrame(animate)
-  c.clearRect(0, 0, canvas.width, canvas.height)
+  animationId = requestAnimationFrame(animate)
+  c.fillStyle = 'rgba(0, 0, 0, 0.1)'
+  c.fillRect(0, 0, canvas.width, canvas.height)
   player.draw();
-  projectiles.forEach(projectile => {
+  projectiles.forEach((projectile, projectileIndex) => {
     projectile.update();
+
+    // remove from edges of screen
+    if (projectile.x + projectile.radius < 0 || projectile.x - projectile.radius > canvas.width || projectile.y + projectile.radius < 0 || projectile.y - projectile.radius > canvas.height) {
+      setTimeout(() => { // setTimeout to wait until next frame to prevent flashing
+        projectiles.splice(projectileIndex, 1)
+      }, 0);
+    }
   });
-  enemies.forEach(enemy => {
+  enemies.forEach((enemy, enemyIndex) => {
     enemy.update();
+    const dist = Math.hypot(player.x - enemy.x, player.y - enemy.y)
+    //enemy hits player
+    if (dist - enemy.radius - player.radius < 1) {
+      cancelAnimationFrame(animationId);
+    }
+    projectiles.forEach((projectile, projectileIndex) => {
+      const dist = Math.hypot(projectile.x - enemy.x, projectile.y - enemy.y)
+
+      // projectile hits enemy touch
+      if (dist - enemy.radius - projectile.radius < 1) {
+        if (enemy.radius - 10 > 10) {
+          gsap.to(enemy, { radius: enemy.radius - 10 })
+          setTimeout(() => { // setTimeout to wait until next frame to prevent flashing
+            projectiles.splice(projectileIndex, 1)
+          }, 0);
+        } else {
+          setTimeout(() => { // setTimeout to wait until next frame to prevent flashing
+            enemies.splice(enemyIndex, 1)
+            projectiles.splice(projectileIndex, 1)
+          }, 0);
+        }
+      }
+    })
   });
 }
 
-const projectile = new Projectile(player.x, player.y, 5, 'red', { x: 1, y: 1 });
+const projectile = new Projectile(player.x, player.y, 5, 'white', { x: 1, y: 1 });
 projectile.update();
 // const projectile2 = new Projectile(player.x, player.y, 5, 'green', { x: 3, y: 3 });
 
 addEventListener('click', (event) => {
-  console.log('clicked!');
   let angle = calculateAngle(player.x, player.y, event.clientX, event.clientY)
-  let velocity = { x: Math.cos(angle * Math.PI / 180), y: Math.sin(angle * Math.PI / 180) }
-  projectiles.push(new Projectile(player.x, player.y, 5, 'red', velocity));
-  console.log(angle);
-  //projectile.draw();
+  let velocity = { x: Math.cos(angle * Math.PI / 180) * 5, y: Math.sin(angle * Math.PI / 180) * 5 }
+  projectiles.push(new Projectile(player.x, player.y, 5, 'white', velocity));
 });
 
 animate();
